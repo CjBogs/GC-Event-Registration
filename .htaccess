@@ -1,0 +1,7 @@
+# Use landing-page.php as the default index page
+
+DirectoryIndex landing-page.php
+
+# Use landing-page.php as the default index page
+
+DirectoryIndex landing-page.php
