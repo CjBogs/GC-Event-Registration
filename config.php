@@ -1,6 +1,6 @@
 <?php
 // Toggle between 'local' and 'production'
-$environment = 'local'; // Change to 'production' when deploying
+$environment = 'production'; // Change to 'production' when deploying
 
 if ($environment === 'local') {
     // Local XAMPP/MySQL setup
