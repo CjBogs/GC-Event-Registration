@@ -1,16 +1,20 @@
 <?php
 session_start();
+
 if (!isset($_SESSION['email'])) {
   header("Location: ../landing-page.php");
   exit();
 }
 
+include('../config.php');
+
 $name = $_SESSION['name'] ?? 'User';
 $email = $_SESSION['email'];
 
-include('../config.php');
+// Fetch user profile info
+$user = [];
+$imagePath = "../uploads/default.png";
 
-// Fetch full user data including profile_image
 $query = "SELECT first_name, last_name, email, profile_image FROM users WHERE email = ?";
 $stmt = $conn->prepare($query);
 $stmt->bind_param('s', $email);
@@ -19,35 +23,32 @@ $result = $stmt->get_result();
 
 if ($result && $result->num_rows > 0) {
   $user = $result->fetch_assoc();
-
-  // Check if profile_image is set and not empty, else fallback to default image
   if (!empty($user['profile_image']) && file_exists("../uploads/" . $user['profile_image'])) {
     $imagePath = "../uploads/" . $user['profile_image'];
-  } else {
-    $imagePath = "../uploads/default.png"; // Or wherever your default image is stored
   }
-} else {
-  $imagePath = "../uploads/default.png";
 }
-
 $stmt->close();
 
-// Fetch user event registrations (approved and pending)
-$events = [];
+// Fetch approved/rejected events with review_reason from events table directly
+$messages = [];
+
 $query = "
-    SELECT e.id, e.title, e.description, e.event_date, er.status
-    FROM events e
-    JOIN event_registrations er ON e.id = er.event_id
-    WHERE er.user_email = ?
-    ORDER BY e.event_date ASC
+  SELECT title, review_reason, status, created_at 
+  FROM events 
+  WHERE user_email = ? 
+    AND status IN ('approved', 'rejected')
+  ORDER BY created_at DESC
 ";
+
 $stmt = $conn->prepare($query);
 $stmt->bind_param('s', $email);
 $stmt->execute();
 $result = $stmt->get_result();
+
 while ($row = $result->fetch_assoc()) {
-  $events[] = $row;
+  $messages[] = $row;
 }
+
 $stmt->close();
 ?>
 
@@ -434,18 +435,29 @@ $stmt->close();
               <h2 class="text-xl font-bold mb-4">Inbox</h2>
 
               <div class="space-y-2 max-h-[60vh] overflow-y-auto">
-                <!-- Example message -->
-                <div class="bg-gray-100 p-3 rounded shadow-sm">
-                  <p class="text-sm font-medium">Event update from Admin</p>
-                  <p class="text-xs text-gray-600">“Your event has been approved.”</p>
-                </div>
-
-                <!-- You can dynamically load messages from PHP here -->
+                <?php if (empty($messages)): ?>
+                  <div class="bg-gray-100 p-3 rounded shadow-sm">
+                    <p class="text-sm text-gray-700">No messages yet.</p>
+                  </div>
+                <?php else: ?>
+                  <?php foreach ($messages as $msg): ?>
+                    <div class="bg-gray-100 p-3 rounded shadow-sm">
+                      <p class="text-sm font-medium">
+                        <?= htmlspecialchars($msg['status']) === 'approved' ? 'Approved Event:' : 'Rejected Event:' ?>
+                        <?= htmlspecialchars($msg['title']) ?>
+                      </p>
+                      <p class="text-xs text-gray-600">
+                        <?= !empty($msg['review_reason']) ? htmlspecialchars($msg['review_reason']) : 'No reason provided' ?>
+                      </p>
+                      <p class="text-[10px] text-gray-400">
+                        <?= htmlspecialchars(date("F j, Y, g:i a", strtotime($msg['created_at']))) ?>
+                      </p>
+                    </div>
+                  <?php endforeach; ?>
+                <?php endif; ?>
               </div>
-            </div>
-          </div>
 
-        </div>
+            </div>
     </header>
 
     <!-- Page Content -->
